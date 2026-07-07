@@ -1,86 +1,18 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Chat</title>
-  <script src="https://www.gstatic.com/firebasejs/7.24.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/7.24.0/firebase-database.js"></script>
-</head>
-<body>
-  <div id="login"><input type="text" id="nick" placeholder="닉네임"><button onclick="login()">입장</button></div>
-  <div id="main" style="display:none;">
-    <h3 id="title">전체 채팅</h3>
-    <div id="users">접속자: <span id="list"></span></div>
-    <button onclick="goPublic()">전체방으로</button>
-    <div id="chat" style="height:250px; overflow-y:scroll; border:2px solid #000; margin:10px 0; padding:10px;"></div>
-    <input type="text" id="msg"><button onclick="send()">전송</button>
-  </div>
-
-  <script>
-    firebase.initializeApp({
-      apiKey: "AIzaSyCFmQ-P45kilcVnex4av0H5WHteRqz6KPI",
-      databaseURL: "https://my-chat-3931c-default-rtdb.firebaseio.com",
-      projectId: "my-chat-3931c"
-    });
-    var db = firebase.database();
-    var myNick, currentRoom = sessionStorage.getItem('currentRoom') || "messages";
-    var discordWebhookUrl = "https://discord.com/api/webhooks/1524033154845773896/L79loWZUMJjYP7WaAiQl2qcR_4yTBMzBiqIyxxrbr8mcKpJ1xmPRePkammWhYQW32kObP";
-
     function login() {
       myNick = document.getElementById('nick').value;
       if(!myNick) return;
+      
       document.getElementById('login').style.display = 'none';
       document.getElementById('main').style.display = 'block';
+      
       db.ref('users/' + myNick).set(true);
       db.ref('users/' + myNick).onDisconnect().remove();
-      loadUserList(); loadChat();
-    }
-
-    function loadUserList() {
-      db.ref('users').on('value', function(s) {
-        var html = "";
-        s.forEach(function(c) { if(c.key !== myNick) html += "<button onclick='enterDM(\""+c.key+"\")'>"+c.key+"(DM)</button> "; });
-        document.getElementById('list').innerHTML = html;
-      });
-    }
-
-    function loadChat() {
-      db.ref().off(); 
-      document.getElementById('chat').innerHTML = "";
-      document.getElementById('title').innerText = (currentRoom === "messages") ? "전체 채팅" : currentRoom.replace("dm/", "") + "와 대화중";
       
-      db.ref(currentRoom).on('child_added', function(d) {
-        var p = document.createElement('p');
-        p.innerText = d.val().name + ": " + d.val().text;
-        var chatDiv = document.getElementById('chat');
-        chatDiv.appendChild(p);
-        chatDiv.scrollTop = chatDiv.scrollHeight;
-      });
+      // 사용자 목록 로드
+      loadUserList(); 
+      
+      // [추가] 3초(3000ms)마다 사용자 목록을 새로고침
+      setInterval(loadUserList, 3000); 
+      
+      loadChat();
     }
-
-    function send() {
-      var input = document.getElementById('msg');
-      if(!input.value) return;
-      db.ref(currentRoom).push({ name: myNick, text: input.value });
-      fetch(discordWebhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: "[" + currentRoom + "] " + myNick + ": " + input.value })
-      }).catch(err => console.log(err));
-      input.value = '';
-    }
-
-    function goPublic() { 
-      currentRoom = "messages"; 
-      sessionStorage.setItem('currentRoom', currentRoom); 
-      loadChat(); 
-    }
-    function enterDM(t) { 
-      var n = [myNick, t].sort(); 
-      currentRoom = "dm/"+n[0]+"_"+n[1]; 
-      sessionStorage.setItem('currentRoom', currentRoom); 
-      loadChat(); 
-    }
-  </script>
-</body>
-</html>
