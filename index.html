@@ -13,36 +13,55 @@
   </div>
   
   <div id="chat-zone" style="display:none;">
-    <div id="chat" style="height:200px; overflow-y:scroll; border:1px solid #ccc;"></div>
+    <h3 id="room-title">전체 채팅방</h3>
+    <button onclick="location.reload()">전체방으로 나가기</button>
+    <div id="chat" style="height:200px; overflow-y:scroll; border:1px solid #ccc; margin-bottom:10px;"></div>
     <input type="text" id="msg" placeholder="메시지 입력">
     <button onclick="send()">전송</button>
   </div>
 
   <script>
+    // [!] 아래 본인의 파이어베이스 정보로 교체하세요!
     var config = { apiKey: "AIzaSyCFmQ-P45kilcVnex4av0H5WHteRqz6KPI", databaseURL: "https://my-chat-3931c-default-rtdb.firebaseio.com" };
     firebase.initializeApp(config);
     var db = firebase.database();
+    
     var myNick = "";
+    var currentRoom = "messages"; // 기본은 전체방
 
     function setNick() {
       myNick = document.getElementById('nickname').value;
       if(myNick) {
         document.getElementById('login-zone').style.display = 'none';
         document.getElementById('chat-zone').style.display = 'block';
+        loadChat();
       }
     }
 
-    db.ref('messages').on('child_added', function(data) {
-      var p = document.createElement('p');
-      p.innerText = data.val().name + ": " + data.val().text;
-      document.getElementById('chat').appendChild(p);
-    });
+    function loadChat() {
+      document.getElementById('chat').innerHTML = "";
+      db.ref(currentRoom).on('child_added', function(data) {
+        var p = document.createElement('p');
+        // 닉네임 클릭하면 DM방으로 이동하는 링크 추가
+        p.innerHTML = "<b style='cursor:pointer; color:blue;' onclick='enterDM(\""+data.val().name+"\")'>" + data.val().name + "</b>: " + data.val().text;
+        document.getElementById('chat').appendChild(p);
+      });
+    }
 
     function send() {
       var val = document.getElementById('msg').value;
-      db.ref('messages').push({ name: myNick, text: val });
+      db.ref(currentRoom).push({ name: myNick, text: val });
       document.getElementById('msg').value = '';
+    }
+
+    function enterDM(targetNick) {
+      if(targetNick === myNick) return;
+      var names = [myNick, targetNick].sort();
+      currentRoom = "dm/" + names[0] + "_" + names[1];
+      document.getElementById('room-title').innerText = targetNick + "님과 1:1 대화중";
+      loadChat();
     }
   </script>
 </body>
 </html>
+
