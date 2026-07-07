@@ -2,111 +2,69 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>채팅방</title>
+  <title>Chat</title>
   <script src="https://www.gstatic.com/firebasejs/7.24.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/7.24.0/firebase-database.js"></script>
 </head>
 <body>
-  <div id="login-zone">
-    <input type="text" id="nickname" placeholder="닉네임 입력">
-    <button onclick="setNick()">입장하기</button>
-  </div>
-  
-  <div id="chat-zone" style="display:none;">
-    <h3 id="room-title">전체 채팅방</h3>
-    <div id="user-list" style="border:1px solid #000; padding:5px; margin-bottom:5px; font-size:12px;">
-        접속자: <span id="user-names"></span>
-    </div>
-    <button onclick="goPublic()">전체 채팅방으로</button>
-    <div id="chat" style="height:150px; overflow:scroll; border:1px solid #ccc; margin:5px 0;"></div>
-    <input type="text" id="msg" placeholder="메시지 입력">
-    <button onclick="send()">전송</button>
+  <div id="login"><input type="text" id="nick" placeholder="닉네임"><button onclick="login()">입장</button></div>
+  <div id="main" style="display:none;">
+    <h3 id="title">전체 채팅</h3>
+    <div id="users">접속자: <span id="list"></span></div>
+    <button onclick="goPublic()">전체방</button>
+    <div id="chat" style="height:150px; overflow:scroll; border:1px solid #ccc;"></div>
+    <input type="text" id="msg"><button onclick="send()">전송</button>
   </div>
 
   <script>
-    // 보내주신 설정값 적용 완료
-    var firebaseConfig = {
+    firebase.initializeApp({
       apiKey: "AIzaSyCFmQ-P45kilcVnex4av0H5WHteRqz6KPI",
-      authDomain: "my-chat-3931c.firebaseapp.com",
       databaseURL: "https://my-chat-3931c-default-rtdb.firebaseio.com",
-      projectId: "my-chat-3931c",
-      storageBucket: "my-chat-3931c.firebasestorage.app",
-      messagingSenderId: "1004470465877",
-      appId: "1:1004470465877:web:0ab11ef9eec2645711abdc"
-    };
-    firebase.initializeApp(firebaseConfig);
+      projectId: "my-chat-3931c"
+    });
     var db = firebase.database();
-    
-    var myNick = "";
-    var currentRoom = "messages";
+    var myNick, currentRoom = "messages";
 
-    function setNick() {
-      myNick = document.getElementById('nickname').value;
-      if(myNick) {
-        document.getElementById('login-zone').style.display = 'none';
-        document.getElementById('chat-zone').style.display = 'block';
-        db.ref('users/' + myNick).set(true);
-        db.ref('users/' + myNick).onDisconnect().remove();
-        
-        db.ref('alerts/' + myNick).on('value', function(s) {
-            if(s.val()) { alert(s.val()); db.ref('alerts/' + myNick).remove(); }
-        });
-        
-        loadUserList();
-        loadChat();
-      }
+    function login() {
+      myNick = document.getElementById('nick').value;
+      if(!myNick) return;
+      document.getElementById('login').style.display = 'none';
+      document.getElementById('main').style.display = 'block';
+      db.ref('users/' + myNick).set(true);
+      db.ref('users/' + myNick).onDisconnect().remove();
+      db.ref('alerts/' + myNick).on('value', function(s) { if(s.val()) { alert(s.val()); db.ref('alerts/' + myNick).remove(); } });
+      loadUserList(); loadChat();
     }
 
     function loadUserList() {
       db.ref('users').on('value', function(s) {
         var html = "";
-        s.forEach(function(c) {
-          var name = c.key;
-          if(name !== myNick) html += "<button onclick='enterDM(\""+name+"\")'>" + name + "</button> ";
-        });
-        document.getElementById('user-names').innerHTML = html;
+        s.forEach(function(c) { if(c.key !== myNick) html += "<button onclick='enterDM(\""+c.key+"\")'>"+c.key+"(DM)</button> "; });
+        document.getElementById('list').innerHTML = html;
       });
     }
 
     function loadChat() {
-      document.getElementById('chat').innerHTML = "";
-      db.ref(currentRoom).on('child_added', function(data) {
+      db.ref(currentRoom).on('child_added', function(d) {
         var p = document.createElement('p');
-        p.innerHTML = "<b>" + data.val().name + "</b>: " + data.val().text;
+        p.innerHTML = "<b>"+d.val().name+"</b>: "+d.val().text;
         document.getElementById('chat').appendChild(p);
       });
     }
 
     function send() {
-      var msg = document.getElementById('msg').value;
-      if(!msg) return;
-      
-      db.ref(currentRoom).push({ name: myNick, text: msg });
-      
+      var val = document.getElementById('msg').value;
+      if(!val) return;
+      db.ref(currentRoom).push({ name: myNick, text: val });
       if(currentRoom !== "messages") {
-          var roomNames = currentRoom.replace("dm/", "").split("_");
-          var target = (roomNames[0] === myNick) ? roomNames[1] : roomNames[0];
-          db.ref('alerts/' + target).set(myNick + ": " + msg);
+        var target = currentRoom.replace("dm/", "").split("_");
+        db.ref('alerts/'+(target[0]===myNick ? target[1] : target[0])).set(myNick+": "+val);
       }
       document.getElementById('msg').value = '';
     }
 
-    function goPublic() {
-      db.ref().off(); 
-      currentRoom = "messages";
-      document.getElementById('room-title').innerText = "전체 채팅방";
-      loadChat();
-      loadUserList();
-    }
-
-    function enterDM(target) {
-      db.ref().off(); 
-      var n = [myNick, target].sort();
-      currentRoom = "dm/" + n[0] + "_" + n[1];
-      document.getElementById('room-title').innerText = target + "와 대화중";
-      loadChat();
-      loadUserList();
-    }
+    function goPublic() { db.ref().off(); currentRoom = "messages"; document.getElementById('title').innerText = "전체 채팅"; loadChat(); }
+    function enterDM(t) { db.ref().off(); var n = [myNick, t].sort(); currentRoom = "dm/"+n[0]+"_"+n[1]; document.getElementById('title').innerText = t+"와 대화중"; loadChat(); }
   </script>
 </body>
 </html>
