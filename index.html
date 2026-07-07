@@ -24,6 +24,9 @@
     });
     var db = firebase.database();
     var myNick, currentRoom = "messages";
+    
+    // 디스코드 웹훅 URL 적용 완료
+    var discordWebhookUrl = "https://discord.com/api/webhooks/1524033154845773896/L79loWZUMJjYP7WaAiQl2qcR_4yTBMzBiqIyxxrbr8mcKpJ1xmPRePkammWhYQW32kObP";
 
     function login() {
       myNick = document.getElementById('nick').value;
@@ -44,7 +47,7 @@
     }
 
     function loadChat() {
-      db.ref().off(); // 기존 연결 해제
+      db.ref().off(); 
       document.getElementById('chat').innerHTML = "";
       db.ref(currentRoom).on('child_added', function(d) {
         var p = document.createElement('p');
@@ -58,7 +61,16 @@
     function send() {
       var input = document.getElementById('msg');
       if(!input.value) return;
+      
       db.ref(currentRoom).push({ name: myNick, text: input.value });
+      
+      // 디스코드 알림 발송
+      fetch(discordWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: "[" + currentRoom + "] " + myNick + ": " + input.value })
+      }).catch(err => console.log("알림 전송 실패:", err));
+      
       input.value = '';
     }
 
