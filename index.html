@@ -23,10 +23,8 @@
       projectId: "my-chat-3931c"
     });
     var db = firebase.database();
-    var myNick, currentRoom = "messages";
-    
-    // 디스코드 웹훅 URL 적용 완료
-    var discordWebhookUrl = "https://discord.com/api/webhooks/1524033154845773896/L79loWZUMJjYP7WaAiQl2qcR_4yTBMzBiqIyxxrbr8mcKpJ1xmPRePkammWhYQW32kOb";
+    var myNick, currentRoom = sessionStorage.getItem('currentRoom') || "messages";
+    var discordWebhookUrl = "https://discord.com/api/webhooks/1524033154845773896/L79loWZUMJjYP7WaAiQl2qcR_4yTBMzBiqIyxxrbr8mcKpJ1xmPRePkammWhYQW32kObP";
 
     function login() {
       myNick = document.getElementById('nick').value;
@@ -49,6 +47,8 @@
     function loadChat() {
       db.ref().off(); 
       document.getElementById('chat').innerHTML = "";
+      document.getElementById('title').innerText = (currentRoom === "messages") ? "전체 채팅" : currentRoom.replace("dm/", "") + "와 대화중";
+      
       db.ref(currentRoom).on('child_added', function(d) {
         var p = document.createElement('p');
         p.innerText = d.val().name + ": " + d.val().text;
@@ -61,24 +61,24 @@
     function send() {
       var input = document.getElementById('msg');
       if(!input.value) return;
-      
       db.ref(currentRoom).push({ name: myNick, text: input.value });
-      
-      // 디스코드 알림 발송
       fetch(discordWebhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: "[" + currentRoom + "] " + myNick + ": " + input.value })
-      }).catch(err => console.log("알림 전송 실패:", err));
-      
+      }).catch(err => console.log(err));
       input.value = '';
     }
 
-    function goPublic() { currentRoom = "messages"; document.getElementById('title').innerText = "전체 채팅"; loadChat(); }
+    function goPublic() { 
+      currentRoom = "messages"; 
+      sessionStorage.setItem('currentRoom', currentRoom); 
+      loadChat(); 
+    }
     function enterDM(t) { 
       var n = [myNick, t].sort(); 
       currentRoom = "dm/"+n[0]+"_"+n[1]; 
-      document.getElementById('title').innerText = t+"와 대화중"; 
+      sessionStorage.setItem('currentRoom', currentRoom); 
       loadChat(); 
     }
   </script>
