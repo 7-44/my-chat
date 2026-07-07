@@ -12,7 +12,7 @@
     <h3 id="title">전체 채팅</h3>
     <div id="users">접속자: <span id="list"></span></div>
     <button onclick="goPublic()">전체방</button>
-    <div id="chat" style="height:150px; overflow:scroll; border:1px solid #ccc;"></div>
+    <div id="chat" style="height:150px; overflow:scroll; border:1px solid #ccc; margin:5px 0;"></div>
     <input type="text" id="msg"><button onclick="send()">전송</button>
   </div>
 
@@ -31,20 +31,21 @@
       document.getElementById('login').style.display = 'none';
       document.getElementById('main').style.display = 'block';
       db.ref('users/' + myNick).set(true);
-      db.ref('users/' + myNick).onDisconnect().remove();
-      db.ref('alerts/' + myNick).on('value', function(s) { if(s.val()) { alert(s.val()); db.ref('alerts/' + myNick).remove(); } });
       loadUserList(); loadChat();
     }
 
     function loadUserList() {
       db.ref('users').on('value', function(s) {
         var html = "";
-        s.forEach(function(c) { if(c.key !== myNick) html += "<button onclick='enterDM(\""+c.key+"\")'>"+c.key+"(DM)</button> "; });
+        s.forEach(function(c) { if(c.key !== myNick) html += "<button onclick='enterDM(\""+c.key+"\")'>"+c.key+"</button> "; });
         document.getElementById('list').innerHTML = html;
       });
     }
 
     function loadChat() {
+      // 실시간 통신 연결 보장
+      db.ref().off(); 
+      document.getElementById('chat').innerHTML = "";
       db.ref(currentRoom).on('child_added', function(d) {
         var p = document.createElement('p');
         p.innerHTML = "<b>"+d.val().name+"</b>: "+d.val().text;
@@ -53,18 +54,22 @@
     }
 
     function send() {
-      var val = document.getElementById('msg').value;
+      var msgInput = document.getElementById('msg');
+      var val = msgInput.value;
       if(!val) return;
-      db.ref(currentRoom).push({ name: myNick, text: val });
-      if(currentRoom !== "messages") {
-        var target = currentRoom.replace("dm/", "").split("_");
-        db.ref('alerts/'+(target[0]===myNick ? target[1] : target[0])).set(myNick+": "+val);
-      }
-      document.getElementById('msg').value = '';
+      
+      // 메시지 저장
+      db.ref(currentRoom).push({ name: myNick, text: val }, function(error) {
+        if (!error) {
+          msgInput.value = ''; // 전송 성공 시에만 초기화
+        } else {
+          alert("전송 실패: " + error.message);
+        }
+      });
     }
 
-    function goPublic() { db.ref().off(); currentRoom = "messages"; document.getElementById('title').innerText = "전체 채팅"; loadChat(); }
-    function enterDM(t) { db.ref().off(); var n = [myNick, t].sort(); currentRoom = "dm/"+n[0]+"_"+n[1]; document.getElementById('title').innerText = t+"와 대화중"; loadChat(); }
+    function goPublic() { currentRoom = "messages"; document.getElementById('title').innerText = "전체 채팅"; loadChat(); }
+    function enterDM(t) { var n = [myNick, t].sort(); currentRoom = "dm/"+n[0]+"_"+n[1]; document.getElementById('title').innerText = t+"와 대화중"; loadChat(); }
   </script>
 </body>
 </html>
