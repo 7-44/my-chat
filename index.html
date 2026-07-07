@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>채팅방</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body>
+  <div id="login-zone">
+    <input type="text" id="nickname" placeholder="닉네임 입력">
+    <button onclick="setNick()">입장하기</button>
+  </div>
+  
+  <div id="chat-zone" style="display:none;">
+    <div id="chat" style="height:200px; overflow-y:scroll; border:1px solid #ccc;"></div>
+    <input type="text" id="msg" placeholder="메시지 입력">
+    <button onclick="send()">전송</button>
+  </div>
+
+  <script>
+    var config = { apiKey: "AIzaSyCFmQ-P45kilcVnex4av0H5WHteRqz6KPI", databaseURL: "https://my-chat-3931c-default-rtdb.firebaseio.com" };
+    firebase.initializeApp(config);
+    var db = firebase.database();
+    var myNick = "";
+
+    function setNick() {
+      myNick = document.getElementById('nickname').value;
+      if(myNick) {
+        document.getElementById('login-zone').style.display = 'none';
+        document.getElementById('chat-zone').style.display = 'block';
+      }
+    }
+
+    db.ref('messages').on('child_added', function(data) {
+      var p = document.createElement('p');
+      p.innerText = data.val().name + ": " + data.val().text;
+      document.getElementById('chat').appendChild(p);
+    });
+
+    function send() {
+      var val = document.getElementById('msg').value;
+      db.ref('messages').push({ name: myNick, text: val });
+      document.getElementById('msg').value = '';
+    }
+  </script>
+</body>
+</html>
